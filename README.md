@@ -1,1 +1,5 @@
 # morph-desegmenter
+
+## Pre-requisites
+
+- 
