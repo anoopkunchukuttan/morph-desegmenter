@@ -1,4 +1,4 @@
-import string, codecs, re, os, sys, itertools, functools
+import string, codecs, re, os, sys, itertools, functools, operator
 import numpy
 from srilm import * 
 import logging
@@ -240,21 +240,55 @@ class NgramViterbiDesegmenter(ViterbiDesegmenter):
         desegment_list.reverse()
         return (word_list,desegment_list)
 
+def rerank_deseg_nbest(infname,outfname,n,desegmenter,lm_fname,lm_order): 
+    """
+    Reranks the n-best list from the base SMT system with language model and the baseline SMT system scores
+    """
+
+    # read the language model 
+    lm_model=initLM(lm_order)
+    readLM(lm_model,lm_fname)
+
+    def parse_line(line):
+        fields=[ x.strip() for x in  line.strip().split('|||') ]
+        fields[0]=int(fields[0])
+        fields[3]=float(fields[3])
+        return fields
+
+    def process_candidate(line):
+        fields=parse_line(line)
+
+        # desegment
+        sentence=fields[1]
+        m_seq=sentence.strip().split(' ')
+        words,wordpos=desegmenter.desegment(m_seq)
+        deseg_sent=u' '.join(words)
+
+        #score with language model and the baseline SMT model 
+        score=getSentenceProb(lm_model,deseg_sent.encode('utf-8'),len(deseg_sent.split(' ')))+fields[3]
+
+        return (deseg_sent,score)
+
+    # desegment and rank the candidates by the LM probability
+    with codecs.open(infname,'r','utf-8') as infile: 
+        with codecs.open(outfname,'w','utf-8') as outfile: 
+            for sent_no, lines in itertools.groupby(iter(infile),key=lambda x:parse_line(x)[0]):
+                scored_desegs=list(itertools.imap(process_candidate, itertools.islice(lines,0,n)))
+                scored_desegs.sort(key=operator.itemgetter(1),reverse=True)
+    
+                outfile.write(scored_desegs[0][0]+u'\n')
+
 if __name__ == '__main__': 
 
     logging.basicConfig(level=logging.INFO)
 
+    
+    #desegmenter=MarkerDesegmenter()
+    #rerank_deseg_nbest(sys.argv[1],sys.argv[2],int(sys.argv[3]),desegmenter,sys.argv[4],int(sys.argv[5]))
 
-    ## test the Marker Desegmenter
-    ## good input
-    #morph_list= ['worker_R_', 's_S_', 'want_R_', 'to_R_', 'post_P_', 'pone_R_', 'the_R_', 'meeting_R_', ',_E_', 'due_R_ ', 'to_R_', 'the_R_', 'vacation_R_', 's_S_', '._E_']
-    ## bad input
-    #morph_list= ['worker_R_', 'want_R_', 'to_R_', 's_S_', 'post_P_', 'pone_R_', 'the_R_', 'meeting_R_', ',_E_', 'due_R_ ', 'to_R_', 'the_R_', 'vacation_R_', 's_S_', '._E_']
-    #deseg=MarkerDesegmenter()
-    #print deseg.desegment(morph_list)
 
-    #deseg=MarkerDesegmenter()
-    deseg=UnigramViterbiDesegmenter(sys.argv[3])
+    deseg=MarkerDesegmenter()
+    #deseg=UnigramViterbiDesegmenter(sys.argv[3])
     #deseg=NgramViterbiDesegmenter(sys.argv[3],2)
 
     with codecs.open(sys.argv[1],'r','utf-8') as infile:
@@ -263,6 +297,14 @@ if __name__ == '__main__':
                 m_seq=line.strip().split(' ')
                 words,wordpos=deseg.desegment(m_seq)
                 outfile.write(' '.join(words)+'\n')
+
+    ## test the Marker Desegmenter
+    ## good input
+    #morph_list= ['worker_R_', 's_S_', 'want_R_', 'to_R_', 'post_P_', 'pone_R_', 'the_R_', 'meeting_R_', ',_E_', 'due_R_ ', 'to_R_', 'the_R_', 'vacation_R_', 's_S_', '._E_']
+    ## bad input
+    #morph_list= ['worker_R_', 'want_R_', 'to_R_', 's_S_', 'post_P_', 'pone_R_', 'the_R_', 'meeting_R_', ',_E_', 'due_R_ ', 'to_R_', 'the_R_', 'vacation_R_', 's_S_', '._E_']
+    #deseg=MarkerDesegmenter()
+    #print deseg.desegment(morph_list)
 
     ###### testing language modelling
     ##text= u'\u0938\u094d\u0935\u091a\u094d\u091b \u0909\u091a\u094d\u091b\u094d\u0935\u093e\u0938 \u0906\u0923\u093f \u0926\u093e\u0924 \u0939\u0947 \u0906\u092a\u0932\u0947 \u0935\u094d\u092f\u0915\u094d\u0924\u093f\u092e\u0924\u094d\u0935 \u0916\u0941\u0932\u0935\u0924\u0940\u0932 .'
