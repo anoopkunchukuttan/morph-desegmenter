@@ -1,0 +1,56 @@
+# All paths must be absolute paths 
+
+# source language 
+# required 
+SRC_LANG="hi"
+
+# target language 
+# required 
+TGT_LANG="mr"
+
+# workspace directory where the intermediate and output files will be created 
+# required 
+WORKSPACE_DIR="/home/development/anoop/experiments/rich_morphology/results/$SRC_LANG-$TGT_LANG/0_pb"
+
+# parallel corpus directory path : must be absolute path
+# required 
+parallel_corpus="/home/development/anoop/experiments/rich_morphology/data/parallel/$SRC_LANG-$TGT_LANG/word"
+
+# parallel corpus description 
+# optional 
+parallel_corpus_desc="Hindi Marathi ILCI"
+
+# target language corpus
+# optional: BUT required if language model has not already been created 
+monolingual_corpus=""
+
+# target language corpus description 
+# optional 
+monolingual_corpus_desc="Marathi monolingual corpus" 
+
+# target language - language model 
+# required
+target_lm="/home/development/anoop/experiments/rich_morphology/data/monolingual/mr/tmp/tmp.mr.lm"
+
+# SRILM options 
+SRILM_OPTS="-tolower \
+            -order 5 \
+            -interpolate \
+            -kndiscount \
+            -text $monolingual_corpus \
+            -lm $target_lm "
+            
+# Moses training script option ( train-model.perl )            
+TRAIN_MODEL_OPTS="-alignment grow-diag-final-and \
+        -lm 0:5:$target_lm:0 \
+        -cores 12 \
+        -parallel \
+        -mgiza  \
+        -mgiza-cpus 12"
+
+# Moses decoder options 
+MOSES_DECODER_OPTS="-threads 12"
+
+# MERT training options 
+MERT_OPTS="--decoder-flags='-threads 12'"
+        
