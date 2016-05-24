@@ -31,8 +31,8 @@ class MarkerDesegmenter(DesegmenterI):
 
     def desegment(self,morph_sequence):
 
-        marker_tags=[ x[-3:].strip(self.DELIMITER)  for x in morph_sequence ]
-        true_morpheme_sequence=[ x[:-3] for x in morph_sequence ]
+        marker_tags=[ x[-3:].strip(self.DELIMITER) if x[-1]==self.DELIMITER else 'E' for x in morph_sequence ]
+        true_morpheme_sequence=[ x[:-3] if x[-1]=='_' else x for x in morph_sequence ]
 
         word_list=[]
         desegment_list=[]
